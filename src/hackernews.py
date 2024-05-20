@@ -50,6 +50,7 @@ class HackerNews:
                 print(
                     f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
                 )
+            await asyncio.sleep(60)
 
     @classmethod
     async def fetch_item(cls, item_id: int):
