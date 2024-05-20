@@ -3,7 +3,7 @@ import aiohttp
 from urllib.parse import urljoin
 from odmantic import AIOEngine
 
-from src.db import Item, save_items
+from src.db import Item, get_item, save_items
 
 
 async def fetch_url(url: str):
@@ -64,18 +64,27 @@ class HackerNews:
         cls, *, start_item: int = 0, end_item: int, batch_size: int = 20
     ):
         for i in range(start_item, end_item, batch_size):
-            batched_items = [i + c for c in range(batch_size)]
+            # check for items already saved
+            batched_items = []
+            for new_item in [i + c for c in range(batch_size)]:
+                item_instance = await get_item(engine=cls.engine, item_id=new_item)
+                if item_instance is None:
+                    batched_items.append(new_item)
+            # fetch items not saved
             items_tasks = [
                 asyncio.create_task(cls.fetch_item(item_id))
                 for item_id in batched_items
             ]
             items_responses = await asyncio.gather(*items_tasks)
+            # filter story items
             story_items = [
                 story_item
                 for story_item in items_responses
                 if story_item is not None and story_item["type"] == "story"
             ]
+            # save them
             items_instances = await save_items(engine=cls.engine, items=story_items)
+            # fetch comments
             await cls.fetch_comments(items=items_instances)
             print(f"Saved stories: {[story_item.id for story_item in items_instances]}")
 
