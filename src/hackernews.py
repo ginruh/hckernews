@@ -29,7 +29,6 @@ class HackerNews:
 
     @classmethod
     async def listen_updates(cls, batch_size=20):
-        ## starting with a delay
         await asyncio.sleep(30)
         while True:
             response = await fetch_url(url=urljoin(cls.base_url, "v0/updates.json"))
@@ -41,10 +40,16 @@ class HackerNews:
                     for item_id in batched_items
                 ]
                 items_responses = await asyncio.gather(*items_task)
-                story_items = [story_item for story_item in items_responses if story_item is not None and story_item["type"] == "story"]
-                items_instances = await save_items(engine=cls.engine, items=items_responses)
+                story_items = [
+                    story_item
+                    for story_item in items_responses
+                    if story_item is not None and story_item["type"] == "story"
+                ]
+                items_instances = await save_items(engine=cls.engine, items=story_items)
                 await cls.fetch_comments(items=items_instances)
-                print(f"Saved updated stories: {[story_item["id"] for story_item in story_items]}")
+                print(
+                    f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
+                )
 
     @classmethod
     async def fetch_item(cls, item_id: int):
@@ -65,12 +70,13 @@ class HackerNews:
             ]
             items_responses = await asyncio.gather(*items_tasks)
             story_items = [
-                story_item 
-                for story_item in items_responses if story_item is not None and story_item["type"] == "story"
+                story_item
+                for story_item in items_responses
+                if story_item is not None and story_item["type"] == "story"
             ]
             items_instances = await save_items(engine=cls.engine, items=story_items)
             await cls.fetch_comments(items=items_instances)
-            print(f"Saved stories: {[story_item["id"] for story_item in story_items]}")
+            print(f"Saved stories: {[story_item.id for story_item in items_instances]}")
 
     @classmethod
     async def fetch_comments(cls, *, items: list[Item]):
@@ -80,8 +86,11 @@ class HackerNews:
             comments_ids = item.kids
             if len(comments_ids) == 0:
                 continue
-            comment_tasks = [asyncio.create_task(cls.fetch_item(c_id)) for c_id in comments_ids]
+            comment_tasks = [
+                asyncio.create_task(cls.fetch_item(c_id)) for c_id in comments_ids
+            ]
             comments_instances = await asyncio.gather(*comment_tasks)
-            comment_items = await save_items(engine=cls.engine, items=comments_instances)
+            comment_items = await save_items(
+                engine=cls.engine, items=comments_instances
+            )
             await cls.fetch_comments(items=comment_items)
-            
