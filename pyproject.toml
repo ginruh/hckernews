@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "hnscraper"
+version = "0.1.0"
+description = ""
+authors = ["ginruh"]
+readme = "README.md"
+packages = [
+    { include = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+odmantic = "^1.0.2"
+aiohttp = "^3.9.5"
+python-dotenv = "^1.0.1"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+app = "src:main"
