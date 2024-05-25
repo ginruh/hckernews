@@ -99,10 +99,7 @@ class HackerNews:
             return
         comment_item_ids = []
         for item in items:
-            for c_id in item.kids:
-                c_instance = await get_item(engine=cls.engine, item_id=c_id)
-                if c_instance is None:
-                    comment_item_ids.append(c_id)
+            comment_item_ids.extend(item.kids)
         print(f"Total comments found: {len(comment_item_ids)}")
         for i in range(0, len(comment_item_ids), batch_size):
             batched_comments = [
