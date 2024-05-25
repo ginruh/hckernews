@@ -65,7 +65,7 @@ class HackerNews:
 
     @classmethod
     async def fetch_story_items(
-        cls, *, start_item: int = 1700000, end_item: int, batch_size: int = 20000
+        cls, *, start_item: int = 0, end_item: int, batch_size: int = 20000
     ):
         for i in range(start_item, end_item, batch_size):
             # check for items already saved
