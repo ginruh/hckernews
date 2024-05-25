@@ -34,7 +34,11 @@ class HackerNews:
             response = await fetch_url(url=urljoin(cls.base_url, "v0/updates.json"))
             items = response["items"]
             for i in range(0, len(items), batch_size):
-                batched_items = [items[item_i] for item_i in range(i, batch_size)]
+                batched_items = [
+                    items[item_i]
+                    for item_i in range(i, i + batch_size)
+                    if item_i < len(items)
+                ]
                 items_task = [
                     asyncio.create_task(cls.fetch_item(item_id))
                     for item_id in batched_items
@@ -61,7 +65,7 @@ class HackerNews:
 
     @classmethod
     async def fetch_story_items(
-        cls, *, start_item: int = 0, end_item: int, batch_size: int = 20
+        cls, *, start_item: int = 1700000, end_item: int, batch_size: int = 20000
     ):
         for i in range(start_item, end_item, batch_size):
             # check for items already saved
@@ -89,18 +93,24 @@ class HackerNews:
             print(f"Saved stories: {[story_item.id for story_item in items_instances]}")
 
     @classmethod
-    async def fetch_comments(cls, *, items: list[Item]):
+    async def fetch_comments(cls, *, items: list[Item], batch_size=20000):
+        # doing sort of breadth traversal and batching them
         if len(items) == 0:
             return
+        comment_item_ids = []
         for item in items:
-            comments_ids = item.kids
-            if len(comments_ids) == 0:
-                continue
-            comment_tasks = [
-                asyncio.create_task(cls.fetch_item(c_id)) for c_id in comments_ids
+            comment_item_ids.extend(item.kids)
+        print(f"Total comments found: {len(comment_item_ids)}")
+        for i in range(0, len(comment_item_ids), batch_size):
+            batched_comments = [
+                comment_item_ids[c_i]
+                for c_i in range(i, i + batch_size)
+                if c_i < len(comment_item_ids)
             ]
-            comments_instances = await asyncio.gather(*comment_tasks)
-            comment_items = await save_items(
-                engine=cls.engine, items=comments_instances
-            )
-            await cls.fetch_comments(items=comment_items)
+            comment_tasks = [
+                asyncio.create_task(cls.fetch_item(item_id))
+                for item_id in batched_comments
+            ]
+            comment_responses = await asyncio.gather(*comment_tasks)
+            comment_items = await save_items(engine=cls.engine, items=comment_responses)
+        await cls.fetch_comments(items=comment_items)
