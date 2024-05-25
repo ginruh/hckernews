@@ -113,4 +113,4 @@ class HackerNews:
             ]
             comment_responses = await asyncio.gather(*comment_tasks)
             comment_items = await save_items(engine=cls.engine, items=comment_responses)
-        await cls.fetch_comments(items=comment_items)
+            await cls.fetch_comments(items=comment_items)
