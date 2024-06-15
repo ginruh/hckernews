@@ -19,4 +19,4 @@ RUN poetry install
 FROM base as prod
 WORKDIR /app
 COPY --from=base /app /app
-CMD ["/app/.venv/bin/app"]
+CMD ["/app/.venv/bin/listener"]

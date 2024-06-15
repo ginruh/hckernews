@@ -1,15 +1,9 @@
 import asyncio
-import aiohttp
 from urllib.parse import urljoin
 from odmantic import AIOEngine
 
-from src.db import Item, get_item, save_items
-
-
-async def fetch_url(url: str):
-    async with aiohttp.ClientSession() as s:
-        async with s.get(url) as res:
-            return await res.json()
+from .db import Item, get_item, save_items
+from .utils import fetch_url
 
 
 class HackerNews:
@@ -26,34 +20,6 @@ class HackerNews:
             return await fetch_url(url=urljoin(cls.base_url, "v0/maxitem.json"))
         except Exception:
             return None
-
-    @classmethod
-    async def listen_updates(cls, batch_size=20):
-        while True:
-            response = await fetch_url(url=urljoin(cls.base_url, "v0/updates.json"))
-            items = response["items"]
-            for i in range(0, len(items), batch_size):
-                batched_items = [
-                    items[item_i]
-                    for item_i in range(i, i + batch_size)
-                    if item_i < len(items)
-                ]
-                items_task = [
-                    asyncio.create_task(cls.fetch_item(item_id))
-                    for item_id in batched_items
-                ]
-                items_responses = await asyncio.gather(*items_task)
-                story_items = [
-                    story_item
-                    for story_item in items_responses
-                    if story_item is not None and story_item["type"] == "story"
-                ]
-                items_instances = await save_items(engine=cls.engine, items=story_items)
-                await cls.fetch_comments(items=items_instances)
-                print(
-                    f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
-                )
-            await asyncio.sleep(60)
 
     @classmethod
     async def fetch_item(cls, item_id: int):
@@ -112,3 +78,7 @@ class HackerNews:
             comment_responses = await asyncio.gather(*comment_tasks)
             comment_items = await save_items(engine=cls.engine, items=comment_responses)
             await cls.fetch_comments(items=comment_items)
+
+    @classmethod
+    async def save_items(cls, items: list[dict | None]):
+        return await save_items(engine=HackerNews.engine, items=items)
