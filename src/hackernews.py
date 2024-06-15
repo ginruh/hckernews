@@ -29,7 +29,6 @@ class HackerNews:
 
     @classmethod
     async def listen_updates(cls, batch_size=20):
-        await asyncio.sleep(30)
         while True:
             response = await fetch_url(url=urljoin(cls.base_url, "v0/updates.json"))
             items = response["items"]
@@ -100,7 +99,6 @@ class HackerNews:
         comment_item_ids = []
         for item in items:
             comment_item_ids.extend(item.kids)
-        print(f"Total comments found: {len(comment_item_ids)}")
         for i in range(0, len(comment_item_ids), batch_size):
             batched_comments = [
                 comment_item_ids[c_i]

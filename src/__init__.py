@@ -18,7 +18,7 @@ async def main():
     if latest_item_id is None:
         raise Exception("Unable to fetch latest item_id. Exiting")
     tasks = [
-        asyncio.create_task(HackerNews.fetch_story_items(end_item=latest_item_id)),
+        # asyncio.create_task(HackerNews.fetch_story_items(end_item=latest_item_id)),
         asyncio.create_task(HackerNews.listen_updates()),
     ]
     await asyncio.gather(*tasks)
