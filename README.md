@@ -1,4 +1,4 @@
-# HNScraper
+# hckernews
 
 Scrapes relevant stories and their comments for learning.
 It scrapes historical stories and comments and also polls for new stories and extracts their comments.
