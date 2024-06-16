@@ -43,8 +43,8 @@ jobs:
 
       - name: Deploy
         run: |
-          ssh {{ secrets.SERVER_USERNAME }}@{{ secrets.SERVER_IP }} /bin/bash << EOF 
-            cd {{ secrets.REPO_PATH }};
+          ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_IP }} /bin/bash << EOF 
+            cd ${{ secrets.REPO_PATH }};
             git pull origin master;
             docker compose down;
             docker compose pull;
