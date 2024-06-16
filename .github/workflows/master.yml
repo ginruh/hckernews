@@ -25,6 +25,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create .env file
+        run: |
+          echo "MONGODB_URI=${{ secrets.APP_MONGODB_URI }}" > .env
+          echo "MONGODB_DATABASE=${{ secrets.APP_MONGODB_DATABASE }}" >> .env
+
       - name: Build and push listener image
         id: push
         uses: docker/build-push-action@v5
