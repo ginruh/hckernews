@@ -33,3 +33,20 @@ jobs:
           file: src/listener/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}/listener:latest
+
+      - name: Setup ssh key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.ACTION_PRIVATE_KEY }}" > ~/.ssh/github_action.key
+          sudo chmod 600 ~/.ssh/github_action.key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} > ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh {{ secrets.SERVER_USERNAME }}@{{ secrets.SERVER_IP }} /bin/bash << EOF 
+            cd {{ secrets.REPO_PATH }};
+            git pull origin master;
+            docker compose down;
+            docker compose pull;
+            docker compose up -d;
+          EOF

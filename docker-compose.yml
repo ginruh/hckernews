@@ -1,5 +1,3 @@
 services:
   listener:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/ginruh/hckernews/listener:latest
