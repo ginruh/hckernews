@@ -80,5 +80,9 @@ class HackerNews:
             await cls.fetch_comments(items=comment_items)
 
     @classmethod
+    async def fetch_top_stories(cls) -> list[int]:
+        return await fetch_url(urljoin(cls.base_url, f"v0/topstories.json"))
+
+    @classmethod
     async def save_items(cls, items: list[dict | None]):
         return await save_items(engine=HackerNews.engine, items=items)

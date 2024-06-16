@@ -17,8 +17,16 @@ RUN poetry install --no-root
 COPY . .
 RUN poetry install
 
-
 FROM base as prod
+USER root
+RUN apt update -y
+RUN apt install cron -y
+RUN echo "* * * * * root /app/.venv/bin/top_stories > /proc/1/fd/1 2>&1\n" >> /etc/cron.d/topstories
+RUN chmod 0644 /etc/cron.d/topstories
+
+USER py
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/app/.venv/bin/listener"]
+
+USER root
+CMD cron -f -l 2

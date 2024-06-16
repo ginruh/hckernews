@@ -21,3 +21,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 listener = "src:listener.main"
+top_stories = "src:top_stories.main"

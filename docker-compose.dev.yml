@@ -10,6 +10,13 @@ services:
       dockerfile: src/listener/Dockerfile
     depends_on:
       - mongodb
+      
+  top_stories:
+    build: 
+      context: .
+      dockerfile: src/top_stories/Dockerfile
+    depends_on:
+      - mongodb
     
   mongodb:
     image: mongo:7.0.11
