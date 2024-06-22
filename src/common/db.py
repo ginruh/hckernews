@@ -1,30 +1,53 @@
+from datetime import datetime
 from typing import Optional
-from odmantic import AIOEngine, Field, Model
-from motor.motor_asyncio import AsyncIOMotorClient
+from sqlalchemy import ForeignKey, insert, select, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 
-class Item(Model):
-    id: int = Field(primary_field=True)
-    deleted: Optional[bool] = False
-    type: str
-    by: Optional[str] = None
-    time: int
-    dead: Optional[bool] = False
-    parent: Optional[int]
-    kids: list[int]
-    url: Optional[str] = None
-    score: Optional[int] = None
-    title: Optional[str] = None  # null for comment
-    text: Optional[str] = None  # maybe null for story
-    descendants: Optional[int] = 0
+class Base(DeclarativeBase):
+    pass
 
 
-def connect_db(mongodb_uri: str, database: str) -> AIOEngine:
-    client = AsyncIOMotorClient(mongodb_uri)
-    return AIOEngine(client=client, database=database)
+class Item(Base):
+    __tablename__ = "item"
+
+    id: Mapped[int] = mapped_column(primary_field=True)
+    deleted: Mapped[bool] = mapped_column(default=False)
+    type: Mapped[str]
+    by: Mapped[Optional[str]] = mapped_column(nullable=True)
+    time: Mapped[int]
+    dead: Mapped[bool] = mapped_column(default=False)
+    parent: Mapped[Optional[int]] = mapped_column(ForeignKey("item.id"), nullable=True)
+    kids: Mapped[list[int]] = mapped_column(default=[])
+    url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    score: Mapped[Optional[int]] = mapped_column(nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(nullable=True)  # null for comment
+    text: Mapped[Optional[str]] = mapped_column(nullable=True)  # maybe null for story
+    descendants: Mapped[Optional[int]] = mapped_column(default=0)
 
 
-async def save_items(*, engine: AIOEngine, items: list[dict | None]) -> list[Item]:
+class TopStories(Base):
+    __tablename__ = "top_stories"
+
+    story_item_id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        primary_key=True, server_default=func.now()
+    )
+
+
+async def connect_db(postgres_uri: str) -> async_sessionmaker[AsyncSession]:
+    engine = create_async_engine(postgres_uri)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def save_items(
+    *, async_session: async_sessionmaker[AsyncSession], items: list[dict | None]
+) -> list[Item]:
     filtered_items: list[dict] = []
     for item in items:
         # removing failed request items
@@ -39,27 +62,50 @@ async def save_items(*, engine: AIOEngine, items: list[dict | None]) -> list[Ite
                 filtered_items.append(item)
         if item.get("type") == "comment":
             filtered_items.append(item)
-    return await engine.save_all(
-        [
-            Item(
-                id=f_item["id"],
-                type=f_item["type"],
-                time=f_item["time"],
-                by=f_item.get("by", None),
-                dead=f_item.get("dead", False),
-                deleted=f_item.get("deleted", False),
-                descendants=f_item.get("descendants", 0),
-                kids=f_item.get("kids", []),
-                parent=f_item.get("parent", None),
-                score=f_item.get("score", None),
-                text=f_item.get("text", None),
-                title=f_item.get("title", None),
-                url=f_item.get("url", None),
-            )
-            for f_item in filtered_items
-        ]
-    )
+    hn_items = [
+        dict(
+            id=f_item["id"],
+            type=f_item["type"],
+            time=f_item["time"],
+            by=f_item.get("by", None),
+            dead=f_item.get("dead", False),
+            deleted=f_item.get("deleted", False),
+            descendants=f_item.get("descendants", 0),
+            kids=f_item.get("kids", []),
+            parent=f_item.get("parent", None),
+            score=f_item.get("score", None),
+            text=f_item.get("text", None),
+            title=f_item.get("title", None),
+            url=f_item.get("url", None),
+        )
+        for f_item in filtered_items
+    ]
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.scalars(insert(Item).returning(Item), hn_items)
+            return list(result.all())
 
 
-async def get_item(*, engine: AIOEngine, item_id: int):
-    return await engine.find_one(Item, Item.id == item_id)
+async def get_item(*, async_session: async_sessionmaker[AsyncSession], item_id: int):
+    async with async_session() as session:
+        stmt = select(Item).where(Item.id == item_id)
+        items = await session.scalars(stmt)
+        return items.first()
+
+
+async def save_top_stories(
+    *, async_session: async_sessionmaker[AsyncSession], stories: list[int]
+):
+    top_stories = [TopStories(story_item_id=story_item_id) for story_item_id in stories]
+    async with async_session() as session:
+        async with session.begin():
+            session.add_all(top_stories)
+
+
+async def bulk_find_items(
+    *, async_session: async_sessionmaker[AsyncSession], items: list[int]
+):
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.scalars(select(Item).where(Item.id.in_(items)))
+            return list(result.all())

@@ -9,13 +9,16 @@ from src.common.hackernews import HackerNews
 from src.common.utils import fetch_url
 
 
-async def main():
+def main():
+    asyncio.run(run())
+
+
+async def run():
     load_dotenv()
-    engine = connect_db(
-        mongodb_uri=cast(str, getenv("MONGODB_URI")),
-        database=cast(str, getenv("MONGODB_DATABASE")),
+    session = await connect_db(
+        postgres_uri=cast(str, getenv("POSTGRES_URI")),
     )
-    HackerNews.set_engine(engine=engine)
+    HackerNews.set_session(session=session)
     await listen_updates()
 
 
@@ -45,6 +48,3 @@ async def listen_updates(batch_size=20):
                 f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
             )
         await asyncio.sleep(60)
-
-
-asyncio.run(main())
