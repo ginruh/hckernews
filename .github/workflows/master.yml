@@ -30,7 +30,6 @@ jobs:
           echo "POSTGRES_URI=${{ secrets.APP_POSTGRES_URI }}" > .env
 
       - name: Build and push listener image
-        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -39,7 +38,6 @@ jobs:
           tags: ghcr.io/${{ github.repository }}/listener:latest
 
       - name: Build and push top_stories image
-        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
