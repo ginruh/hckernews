@@ -9,19 +9,26 @@ services:
       context: .
       dockerfile: src/listener/Dockerfile
     depends_on:
-      - mongodb
+      - postgres
+      
+  top_stories:
+    build: 
+      context: .
+      dockerfile: src/top_stories/Dockerfile
+    depends_on:
+      - postgres
+      - listener
     
-  mongodb:
-    image: mongo:7.0.11
+  postgres:
+    image: postgres:16.3-alpine
     ports:
-      - "27017:27017"
+      - "5432:5432"
     env_file:
       - .env
     healthcheck:
       <<: *healthcheck-config
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
     volumes:
-      - mongodb_data:/data/db
-        
+      - pg_data:/var/lib/postgresql/data
+      
 volumes:
-  mongodb_data:
+  pg_data:

@@ -1,4 +1,5 @@
 import asyncio
+
 from typing import cast
 from urllib.parse import urljoin
 from dotenv import load_dotenv
@@ -9,13 +10,16 @@ from src.common.hackernews import HackerNews
 from src.common.utils import fetch_url
 
 
-async def main():
+def main():
+    asyncio.run(run())
+
+
+async def run():
     load_dotenv()
-    engine = connect_db(
-        mongodb_uri=cast(str, getenv("MONGODB_URI")),
-        database=cast(str, getenv("MONGODB_DATABASE")),
+    session = await connect_db(
+        postgres_uri=cast(str, getenv("POSTGRES_URI")),
     )
-    HackerNews.set_engine(engine=engine)
+    HackerNews.set_session(session=session)
     await listen_updates()
 
 
@@ -37,14 +41,15 @@ async def listen_updates(batch_size=20):
             story_items = [
                 story_item
                 for story_item in items_responses
-                if story_item is not None and story_item["type"] == "story"
+                if story_item is not None and story_item.get("type") == "story"
             ]
-            items_instances = await HackerNews.save_items(items=story_items)
-            await HackerNews.fetch_comments(items=items_instances)
-            print(
-                f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
-            )
+            try:
+                items_instances = await HackerNews.save_items(items=story_items)
+                await HackerNews.fetch_comments(items=items_instances)
+                print(
+                    f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
+                )
+            except Exception as e:
+                print(e)
+
         await asyncio.sleep(60)
-
-
-asyncio.run(main())

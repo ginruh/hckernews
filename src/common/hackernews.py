@@ -1,18 +1,19 @@
 import asyncio
 from urllib.parse import urljoin
-from odmantic import AIOEngine
+from sqlalchemy import Engine
 
 from .db import Item, get_item, save_items
 from .utils import fetch_url
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 
 class HackerNews:
     base_url: str = "https://hacker-news.firebaseio.com"
-    engine: AIOEngine
+    session: async_sessionmaker[AsyncSession]
 
     @classmethod
-    def set_engine(cls, engine: AIOEngine) -> None:
-        cls.engine = engine
+    def set_session(cls, session: async_sessionmaker[AsyncSession]) -> None:
+        cls.session = session
 
     @classmethod
     async def get_latest_item(cls) -> int | None:
@@ -36,7 +37,9 @@ class HackerNews:
             # check for items already saved
             batched_items = []
             for new_item in [i + c for c in range(batch_size)]:
-                item_instance = await get_item(engine=cls.engine, item_id=new_item)
+                item_instance = await get_item(
+                    async_session=cls.session, item_id=new_item
+                )
                 if item_instance is None:
                     batched_items.append(new_item)
             # fetch items not saved
@@ -52,10 +55,26 @@ class HackerNews:
                 if story_item is not None and story_item["type"] == "story"
             ]
             # save them
-            items_instances = await save_items(engine=cls.engine, items=story_items)
+            items_instances = await save_items(
+                async_session=cls.session, items=story_items
+            )
             # fetch comments
             await cls.fetch_comments(items=items_instances)
             print(f"Saved stories: {[story_item.id for story_item in items_instances]}")
+
+    @classmethod
+    async def bulk_fetch_items(cls, *, item_ids: list[int], batch_size: int = 20):
+        start_item = 0
+        end_item = len(item_ids)
+        fetched_items = []
+        for i in range(start_item, end_item, batch_size):
+            batched_items = [i + c for c in range(batch_size)]
+            items_tasks = [
+                asyncio.create_task(cls.fetch_item(item_ids[i])) for i in batched_items
+            ]
+            items = await asyncio.gather(*items_tasks)
+            fetched_items.extend(items)
+        return fetched_items
 
     @classmethod
     async def fetch_comments(cls, *, items: list[Item], batch_size=20000):
@@ -76,9 +95,15 @@ class HackerNews:
                 for item_id in batched_comments
             ]
             comment_responses = await asyncio.gather(*comment_tasks)
-            comment_items = await save_items(engine=cls.engine, items=comment_responses)
+            comment_items = await save_items(
+                async_session=cls.session, items=comment_responses
+            )
             await cls.fetch_comments(items=comment_items)
 
     @classmethod
+    async def fetch_top_stories(cls) -> list[int]:
+        return await fetch_url(urljoin(cls.base_url, f"v0/topstories.json"))
+
+    @classmethod
     async def save_items(cls, items: list[dict | None]):
-        return await save_items(engine=HackerNews.engine, items=items)
+        return await save_items(async_session=cls.session, items=items)
