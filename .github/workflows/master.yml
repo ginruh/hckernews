@@ -38,6 +38,15 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}/listener:latest
 
+      - name: Build and push top_stories image
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/top_stories/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/top_stories:latest
+
       - name: Setup ssh key
         run: |
           mkdir -p ~/.ssh/
