@@ -1,4 +1,5 @@
 import asyncio
+
 from typing import cast
 from urllib.parse import urljoin
 from dotenv import load_dotenv
@@ -40,11 +41,15 @@ async def listen_updates(batch_size=20):
             story_items = [
                 story_item
                 for story_item in items_responses
-                if story_item is not None and story_item["type"] == "story"
+                if story_item is not None and story_item.get("type") == "story"
             ]
-            items_instances = await HackerNews.save_items(items=story_items)
-            await HackerNews.fetch_comments(items=items_instances)
-            print(
-                f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
-            )
+            try:
+                items_instances = await HackerNews.save_items(items=story_items)
+                await HackerNews.fetch_comments(items=items_instances)
+                print(
+                    f"Saved updated stories: {[story_item.id for story_item in items_instances]}"
+                )
+            except Exception as e:
+                print(e)
+
         await asyncio.sleep(60)

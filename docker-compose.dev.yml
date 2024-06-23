@@ -9,7 +9,6 @@ services:
       context: .
       dockerfile: src/listener/Dockerfile
     depends_on:
-      - mongodb
       - postgres
       
   top_stories:
@@ -17,8 +16,8 @@ services:
       context: .
       dockerfile: src/top_stories/Dockerfile
     depends_on:
-      - mongodb
       - postgres
+      - listener
     
   postgres:
     image: postgres:16.3-alpine
@@ -32,5 +31,4 @@ services:
       - pg_data:/var/lib/postgresql/data
       
 volumes:
-  mongodb_data:
   pg_data:

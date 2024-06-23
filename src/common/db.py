@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, insert, select, func
+from sqlalchemy import ForeignKey, select, func, ARRAY, Integer
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.dialects.postgresql import Insert
 
 
 class Base(DeclarativeBase):
@@ -12,14 +13,14 @@ class Base(DeclarativeBase):
 class Item(Base):
     __tablename__ = "item"
 
-    id: Mapped[int] = mapped_column(primary_field=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     deleted: Mapped[bool] = mapped_column(default=False)
     type: Mapped[str]
     by: Mapped[Optional[str]] = mapped_column(nullable=True)
     time: Mapped[int]
     dead: Mapped[bool] = mapped_column(default=False)
     parent: Mapped[Optional[int]] = mapped_column(ForeignKey("item.id"), nullable=True)
-    kids: Mapped[list[int]] = mapped_column(default=[])
+    kids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=[])
     url: Mapped[Optional[str]] = mapped_column(nullable=True)
     score: Mapped[Optional[int]] = mapped_column(nullable=True)
     title: Mapped[Optional[str]] = mapped_column(nullable=True)  # null for comment
@@ -48,10 +49,15 @@ async def connect_db(postgres_uri: str) -> async_sessionmaker[AsyncSession]:
 async def save_items(
     *, async_session: async_sessionmaker[AsyncSession], items: list[dict | None]
 ) -> list[Item]:
+    if len(items) == 0:
+        return []
     filtered_items: list[dict] = []
     for item in items:
         # removing failed request items
         if item is None:
+            continue
+        # remove item with no type
+        if item.get("type") is None:
             continue
         # not interested in jobs and polls
         if item.get("type") != "story" and item.get("type") != "comment":
@@ -82,7 +88,26 @@ async def save_items(
     ]
     async with async_session() as session:
         async with session.begin():
-            result = await session.scalars(insert(Item).returning(Item), hn_items)
+            stmt = Insert(Item).values(hn_items)
+            result = await session.scalars(
+                stmt.on_conflict_do_update(
+                    index_elements=["id"],
+                    set_={
+                        "type": stmt.excluded.type,
+                        "time": stmt.excluded.time,
+                        "by": stmt.excluded.by,
+                        "dead": stmt.excluded.dead,
+                        "deleted": stmt.excluded.deleted,
+                        "descendants": stmt.excluded.descendants,
+                        "kids": stmt.excluded.kids,
+                        "parent": stmt.excluded.parent,
+                        "score": stmt.excluded.score,
+                        "text": stmt.excluded.text,
+                        "title": stmt.excluded.title,
+                        "url": stmt.excluded.url,
+                    },
+                ).returning(Item)
+            )
             return list(result.all())
 
 
