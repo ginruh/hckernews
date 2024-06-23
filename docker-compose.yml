@@ -4,5 +4,5 @@ services:
 
   top_stories:
     image: ghcr.io/ginruh/hckernews/top_stories:latest
-  depends_on:
-    - listener
+    depends_on:
+      - listener
