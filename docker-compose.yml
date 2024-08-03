@@ -1,8 +1,8 @@
 services:
   listener:
-    image: ghcr.io/ginruh/hckernews/listener:latest
+    image: ghcr.io/vomaksh/hckernews/listener:latest
 
   top_stories:
-    image: ghcr.io/ginruh/hckernews/top_stories:latest
+    image: ghcr.io/vomaksh/hckernews/top_stories:latest
     depends_on:
       - listener
